@@ -1,15 +1,14 @@
 person
 bicycle
 car
-motorcycle
-airplane
+motorbike
+aeroplane
 bus
 train
 truck
 boat
 traffic light
 fire hydrant
-n/a
 stop sign
 parking meter
 bench
@@ -23,11 +22,8 @@ elephant
 bear
 zebra
 giraffe
-n/a
 backpack
 umbrella
-n/a
-n/a
 handbag
 tie
 suitcase
@@ -42,7 +38,6 @@ skateboard
 surfboard
 tennis racket
 bottle
-n/a
 wine glass
 cup
 fork
@@ -60,16 +55,12 @@ pizza
 donut
 cake
 chair
-couch
-potted plant
+sofa
+pottedplant
 bed
-n/a
-dining table
-n/a
-n/a
+diningtable
 toilet
-n/a
-tv
+tvmonitor
 laptop
 mouse
 remote
@@ -80,7 +71,6 @@ oven
 toaster
 sink
 refrigerator
-n/a
 book
 clock
 vase

@@ -1,11 +1,324 @@
+<!-- RPi Dashboard - index.html -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Autonomous UAV Dashboard</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        h1 { 
+            text-align: center; 
+            color: #1a237e;
+        }
+        #main-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 24px;
+        }
+        .card {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            min-width: 300px;
+        }
+        .card h2 {
+            margin-top: 0;
+            border-bottom: 2px solid #303f9f;
+            padding-bottom: 8px;
+            color: #303f9f;
+        }
+        #video-card img {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 8px;
+            background: #222;
+        }
+        .sensor-reading {
+            font-size: 1.5em;
+            margin: 16px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sensor-reading .label {
+            font-weight: 500;
+            color: #555;
+        }
+        .sensor-reading .value {
+            font-weight: bold;
+            color: #0d47a1;
+            background-color: #e3f2fd;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+        .sensor-reading .value-box {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+        .sensor-reading .sub-value {
+            font-size: 0.7em;
+            color: #666;
+            font-weight: normal;
+        }
+        .value.error {
+            color: #D32F2F;
+            background-color: #FFEBEE;
+        }
+        .value.alarm {
+            color: #D32F2F;
+            background-color: #FFEBEE;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+        .value.clear {
+            color: #2E7D32;
+            background-color: #E8F5E9;
+            font-weight: bold;
+        }
+        .value.sensor-offline {
+            color: #FF6F00;
+            background-color: #FFF3E0;
+            font-weight: bold;
+            font-size: 0.85em;
+        }
+        .value.warning {
+            color: #F57C00;
+            background-color: #FFF3E0;
+            font-weight: bold;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+        .progress-bar.safe {
+            background-color: #4CAF50;
+        }
+        .progress-bar.danger {
+            background-color: #f44336;
+        }
+    </style>
 </head>
 <body>
-    <!-- Your index.html content goes here -->
+
+    <h1><span style="font-size: 1.5em;">=</span> Autonomous UAV Dashboard</h1>
+
+    <div id="main-container">
+        <!-- Sensor Data Card -->
+        <div id="sensors-card" class="card">
+            <h2>Sensor Data</h2>
+            
+            <div class="sensor-reading">
+                <span class="label"><! Temperature:</span>
+                <span class="value" id="temp">Loading...</span>
+            </div>
+            
+            <div class="sensor-reading">
+                <span class="label">=ß Humidity:</span>
+                <span class="value" id="humidity">Loading...</span>
+            </div>
+            
+            <div class="sensor-reading">
+                <span class="label">=® Gas Sensor:</span>
+                <div class="value-box">
+                    <span class="value" id="gas">Loading...</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar safe" id="gas-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sensor-reading">
+                <span class="label">> AI Detection:</span>
+                <span class="value" id="ai-status">Loading...</span>
+            </div>
+            
+            <div class="sensor-reading" id="distance-row" style="display:none;">
+                <span class="label">=œ Distance:</span>
+                <div class="value-box">
+                    <span class="value" id="person-distance">--</span>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar safe" id="distance-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sensor-reading">
+                <span class="label">=Å Pixhawk:</span>
+                <span class="value" id="pixhawk-status">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Video Feed Card -->
+        <div id="video-card" class="card">
+            <h2>Live Camera Feed with AI</h2>
+            <img src="/video_feed" alt="Live video feed from Raspberry Pi">
+        </div>
+    </div>
+
+    <script>
+        // Find the elements we need to update
+        const tempElement = document.getElementById('temp');
+        const humidityElement = document.getElementById('humidity');
+        const gasElement = document.getElementById('gas');
+        const gasBarElement = document.getElementById('gas-bar');
+        const aiStatusElement = document.getElementById('ai-status');
+        const pixhawkStatusElement = document.getElementById('pixhawk-status');
+        const distanceRow = document.getElementById('distance-row');
+        const distanceElement = document.getElementById('person-distance');
+        const distanceBarElement = document.getElementById('distance-bar');
+
+        // This function will run every 2 seconds to fetch new data
+        async function updateSensorData() {
+            try {
+                // 1. Fetch data from our Python API
+                const response = await fetch('/api/sensors');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                // 2. Update Temperature
+                if (data.temperature === -999.0) {
+                    tempElement.textContent = "Sensor Offline";
+                    tempElement.className = "value sensor-offline";
+                } else {
+                    tempElement.textContent = `${data.temperature.toFixed(1)} ∞C`;
+                    tempElement.className = "value";
+                }
+                
+                // 3. Update Humidity
+                if (data.humidity === -999.0) {
+                    humidityElement.textContent = "Sensor Offline";
+                    humidityElement.className = "value sensor-offline";
+                } else {
+                    humidityElement.textContent = `${data.humidity.toFixed(1)} %`;
+                    humidityElement.className = "value";
+                }
+                
+                // 4. Update Gas Sensor with VALUE and STATUS
+                if (data.gas_level === -999.0) {
+                    gasElement.textContent = "Sensor Offline";
+                    gasElement.className = "value sensor-offline";
+                    gasBarElement.style.width = "0%";
+                } else {
+                    // Show numeric value AND status
+                    const gasValue = data.gas_level;
+                    let statusText = "";
+                    
+                    if (gasValue >= 100) {
+                        statusText = "† ALARM!";
+                        gasElement.className = "value alarm";
+                        gasBarElement.className = "progress-bar danger";
+                    } else {
+                        statusText = " Clear";
+                        gasElement.className = "value clear";
+                        gasBarElement.className = "progress-bar safe";
+                    }
+                    
+                    gasElement.innerHTML = `${gasValue.toFixed(0)}% <span class="sub-value">${statusText}</span>`;
+                    gasBarElement.style.width = `${gasValue}%`;
+                }
+
+                // 5. Update AI Detection Status
+                if (data.person_detected) {
+                    aiStatusElement.textContent = "† PERSON DETECTED!";
+                    aiStatusElement.className = "value alarm";
+                } else if (data.ai_enabled) {
+                    aiStatusElement.textContent = " Monitoring";
+                    aiStatusElement.className = "value clear";
+                } else {
+                    aiStatusElement.textContent = "AI Offline";
+                    aiStatusElement.className = "value sensor-offline";
+                }
+
+                // 6. Update Person Distance (show only when person detected)
+                if (data.person_distance !== null && data.person_distance !== undefined) {
+                    distanceRow.style.display = 'flex';
+                    const dist = data.person_distance;
+                    
+                    // Show distance value
+                    distanceElement.textContent = dist.toFixed(2) + ' m';
+                    
+                    // Color code by distance
+                    if (dist <= 2.0) {
+                        distanceElement.className = 'value alarm';
+                        distanceBarElement.className = 'progress-bar danger';
+                        // Scale bar: 0m = 100%, 2m = 0%
+                        distanceBarElement.style.width = `${100 - (dist / 2.0 * 100)}%`;
+                    } else if (dist <= 4.0) {
+                        distanceElement.className = 'value warning';
+                        distanceBarElement.className = 'progress-bar safe';
+                        // Scale bar: 2m = 100%, 4m = 0%
+                        distanceBarElement.style.width = `${100 - ((dist - 2) / 2.0 * 100)}%`;
+                    } else {
+                        distanceElement.className = 'value clear';
+                        distanceBarElement.className = 'progress-bar safe';
+                        distanceBarElement.style.width = "0%";
+                    }
+                } else {
+                    distanceRow.style.display = 'none';
+                }
+
+                // 7. Update Pixhawk Status
+                if (data.pixhawk_connected) {
+                    pixhawkStatusElement.textContent = " Connected";
+                    pixhawkStatusElement.className = "value clear";
+                } else {
+                    pixhawkStatusElement.textContent = "Simulation Mode";
+                    pixhawkStatusElement.className = "value warning";
+                }
+                
+            } catch (error) {
+                console.error('Failed to fetch sensor data:', error);
+                
+                // Show network error
+                tempElement.textContent = "Network Down";
+                tempElement.className = "value error";
+                humidityElement.textContent = "Network Down";
+                humidityElement.className = "value error";
+                gasElement.textContent = "Network Down";
+                gasElement.className = "value error";
+                aiStatusElement.textContent = "Network Down";
+                aiStatusElement.className = "value error";
+                pixhawkStatusElement.textContent = "Network Down";
+                pixhawkStatusElement.className = "value error";
+                distanceRow.style.display = 'none';
+                gasBarElement.style.width = "0%";
+                distanceBarElement.style.width = "0%";
+            }
+        }
+
+        // Run the function once on page load, 
+        // and then every 2000 milliseconds (2 seconds)
+        updateSensorData();
+        setInterval(updateSensorData, 2000);
+    </script>
+
 </body>
 </html>
